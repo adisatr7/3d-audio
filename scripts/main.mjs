@@ -7,6 +7,7 @@ import {
   spatializeAmbientSound,
   updateSpatialPositions
 } from "./spatial-audio.mjs";
+import {getTokenDocumentListener} from "./coordinates.mjs";
 
 const WRAPPED = Symbol.for("3d-audio.AmbientSound.applyEffects");
 
@@ -97,7 +98,7 @@ Hooks.on("updateToken", (document, changes) => {
     return;
   }
 
-  updateSpatialPositions();
+  updateSpatialPositions(getTokenDocumentListener(document, changes));
 });
 
 Hooks.on("updateAmbientSound", (document, changes) => {

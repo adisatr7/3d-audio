@@ -126,8 +126,7 @@ export function spatializeAmbientSound(ambient) {
 /**
  * Update only currently-spatialized sounds after token or emitter movement.
  */
-export function updateSpatialPositions() {
-  const listener = getControlledTokenListener();
+export function updateSpatialPositions(listener = getControlledTokenListener()) {
   if (!worldEnabled() || !listener) {
     removeAllSpatializers();
     return;

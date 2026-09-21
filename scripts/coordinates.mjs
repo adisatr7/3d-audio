@@ -49,11 +49,26 @@ export function getControlledTokenListener() {
     return null;
   }
 
-  const position = token.document.getCenterPoint();
+  return getTokenDocumentListener(token.document, {}, token);
+}
+
+/**
+ * Resolve listener data from a TokenDocument and an optional pending update.
+ * Foundry may dispatch updateToken before the controlled canvas token reflects
+ * the new values, so update payload values must take precedence.
+ *
+ * @param {object} document A TokenDocument.
+ * @param {object} [changes] Pending TokenDocument changes.
+ * @param {object|null} [token] The corresponding canvas Token placeable.
+ * @returns {{token: object|null, position: {x: number, y: number}, rotation: number}}
+ */
+export function getTokenDocumentListener(document, changes = {}, token = document.object ?? null) {
+  const position = document.getCenterPoint(changes);
+  const rotation = changes.rotation ?? document.rotation;
 
   return {
     token,
     position: {x: position.x, y: position.y},
-    rotation: Number(token.document.rotation) || 0
+    rotation: Number(rotation) || 0
   };
 }

@@ -1,0 +1,18 @@
+{
+  "id": "3d-audio",
+  "title": "3D Audio",
+  "description": "Listener-relative HRTF spatialization for native canvas Ambient Sounds.",
+  "version": "1.0.0",
+  "authors": [
+    {
+      "name": "reflection77"
+    }
+  ],
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14"
+  },
+  "esmodules": [
+    "scripts/main.mjs"
+  ]
+}

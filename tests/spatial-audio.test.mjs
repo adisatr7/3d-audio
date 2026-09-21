@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import {getTokenDocumentListener} from "../scripts/coordinates.mjs";
+
 class FakeAudioParam {
   value = 0;
   cancelScheduledValues() {}
@@ -117,6 +119,28 @@ test("token rotation updates the existing node without accumulation", () => {
 
   assert.equal(sound.effects.length, 2);
   assert.equal(sound.effects[1], panner);
+  assert.equal(panner.positionX.value, -50);
+  assert.ok(Math.abs(panner.positionZ.value) < 1e-9);
+});
+
+test("token rotation is applied on the first update", () => {
+  const sound = makeSound();
+  const ambient = makeAmbient(sound);
+  spatializeAmbientSound(ambient);
+  const panner = sound.effects[1];
+  const document = {
+    rotation: 0,
+    object: controlled[0],
+    getCenterPoint: (changes = {}) => ({
+      x: changes.x ?? 100,
+      y: changes.y ?? 100
+    })
+  };
+
+  const listener = getTokenDocumentListener(document, {rotation: 90});
+  updateSpatialPositions(listener);
+
+  assert.equal(document.rotation, 0);
   assert.equal(panner.positionX.value, -50);
   assert.ok(Math.abs(panner.positionZ.value) < 1e-9);
 });

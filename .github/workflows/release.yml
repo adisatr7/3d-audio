@@ -1,0 +1,61 @@
+name: Test and release
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Test and check syntax
+        run: |
+          node --test tests/*.test.mjs
+          node --check scripts/main.mjs
+          node --check scripts/coordinates.mjs
+          node --check scripts/spatial-audio.mjs
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Foundry release assets
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          jq -e --arg version "$VERSION" '.version == $version and .id == "3d-audio"' module.json
+
+          MANIFEST="https://github.com/$GITHUB_REPOSITORY/releases/latest/download/module.json"
+          DOWNLOAD="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/3d-audio.zip"
+
+          mkdir -p dist
+          jq --arg manifest "$MANIFEST" --arg download "$DOWNLOAD" \
+            '. + {manifest: $manifest, download: $download}' \
+            module.json > dist/module.json
+          mkdir -p dist/scripts
+          cp scripts/main.mjs scripts/coordinates.mjs scripts/spatial-audio.mjs dist/scripts/
+          (cd dist && zip ../3d-audio.zip \
+            module.json \
+            scripts/main.mjs \
+            scripts/coordinates.mjs \
+            scripts/spatial-audio.mjs)
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/module.json 3d-audio.zip \
+            --verify-tag --title "$GITHUB_REF_NAME" --generate-notes

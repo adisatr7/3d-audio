@@ -1,0 +1,10 @@
+{
+  "3d-audio": {
+    "settings": {
+      "enabled": {
+        "name": "Enable 3D Audio",
+        "hint": "Apply listener-relative HRTF spatialization to enabled canvas Ambient Sounds and door sounds. Disabling this restores native playback."
+      }
+    }
+  }
+}

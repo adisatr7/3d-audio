@@ -5,9 +5,9 @@ import {
   removeAllSpatializers,
   removeAmbientSpatializer,
   spatializeAmbientSound,
-  updateSpatialPositions
+  updateSpatialPositions,
 } from "./spatial-audio.mjs";
-import {getTokenDocumentListener} from "./coordinates.mjs";
+import { getTokenDocumentListener } from "./coordinates.mjs";
 
 const WRAPPED = Symbol.for("3d-audio.AmbientSound.applyEffects");
 
@@ -23,14 +23,15 @@ function installAmbientSoundEffectsWrapper() {
     const result = original.apply(this, args);
     try {
       spatializeAmbientSound(this);
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`${MODULE_ID} | Failed to spatialize Ambient Sound`, error);
     }
     return result;
   }
 
-  Object.defineProperty(applyEffectsWithSpatialization, WRAPPED, {value: true});
+  Object.defineProperty(applyEffectsWithSpatialization, WRAPPED, {
+    value: true,
+  });
   prototype.applyEffects = applyEffectsWithSpatialization;
 }
 
@@ -43,7 +44,7 @@ function addAmbientSoundConfigCheckbox(app, element) {
   group.className = "form-group";
 
   const label = document.createElement("label");
-  label.textContent = "Enable 3D Audio";
+  label.textContent = game.i18n.localize("3d-audio.settings.enabled.name");
 
   const fields = document.createElement("div");
   fields.className = "form-fields";
@@ -58,7 +59,9 @@ function addAmbientSoundConfigCheckbox(app, element) {
   group.append(label, fields);
 
   // Keep the addition inside Foundry's existing Activation section.
-  const wallsGroup = element.querySelector('[name="walls"]')?.closest(".form-group");
+  const wallsGroup = element
+    .querySelector('[name="walls"]')
+    ?.closest(".form-group");
   if (wallsGroup) {
     wallsGroup.insertAdjacentElement("afterend", group);
   } else {
@@ -68,8 +71,8 @@ function addAmbientSoundConfigCheckbox(app, element) {
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, ENABLED_SETTING, {
-    name: "Enable 3D Audio",
-    hint: "Apply listener-relative HRTF spatialization to enabled canvas Ambient Sounds.",
+    name: "3d-audio.settings.enabled.name",
+    hint: "3d-audio.settings.enabled.hint",
     scope: "world",
     config: true,
     type: Boolean,
@@ -115,11 +118,11 @@ Hooks.on("updateAmbientSound", (document, changes) => {
     }
   }
 
-  if (("x" in changes) || ("y" in changes)) {
+  if ("x" in changes || "y" in changes) {
     updateSpatialPositions();
   }
 });
 
 Hooks.on("deleteAmbientSound", (document) => {
-  removeAmbientSpatializer(document.object, {forgetOwner: true});
+  removeAmbientSpatializer(document.object, { forgetOwner: true });
 });

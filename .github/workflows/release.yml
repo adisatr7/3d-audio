@@ -22,6 +22,9 @@ jobs:
           node --check scripts/main.mjs
           node --check scripts/coordinates.mjs
           node --check scripts/spatial-audio.mjs
+          node --check scripts/panner.mjs
+          node --check scripts/door-audio.mjs
+          node --check scripts/door-config.mjs
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -44,13 +47,13 @@ jobs:
           jq --arg manifest "$MANIFEST" --arg download "$DOWNLOAD" \
             '. + {manifest: $manifest, download: $download}' \
             module.json > dist/module.json
-          mkdir -p dist/scripts
-          cp scripts/main.mjs scripts/coordinates.mjs scripts/spatial-audio.mjs dist/scripts/
+          mkdir -p dist/scripts dist/lang
+          cp scripts/*.mjs dist/scripts/
+          cp lang/*.json dist/lang/
           (cd dist && zip ../3d-audio.zip \
             module.json \
-            scripts/main.mjs \
-            scripts/coordinates.mjs \
-            scripts/spatial-audio.mjs)
+            scripts/*.mjs \
+            lang/*.json)
 
       - name: Publish GitHub release
         env:

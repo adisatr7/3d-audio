@@ -1,4 +1,9 @@
-import {getControlledTokenListener, toListenerSpace} from "./coordinates.mjs";
+import { getControlledTokenListener } from "./coordinates.mjs";
+import {
+  createDirectionalPanner,
+  detachPanner,
+  positionPanner,
+} from "./panner.mjs";
 
 export const MODULE_ID = "3d-audio";
 export const ENABLED_SETTING = "enabled";
@@ -26,58 +31,26 @@ function documentEnabled(document) {
   return document?.getFlag(MODULE_ID, "enabled") !== false;
 }
 
-function setAudioParam(param, value, context) {
-  const now = context.currentTime;
-  param.cancelScheduledValues(now);
-  param.setValueAtTime(value, now);
-}
-
 function createPanner(sound) {
-  const panner = new PannerNode(sound.context, {
-    panningModel: "HRTF",
-    distanceModel: "inverse",
-    refDistance: 1,
-    maxDistance: 10000,
-    rolloffFactor: 0,
-    coneInnerAngle: 360,
-    coneOuterAngle: 360,
-    coneOuterGain: 1
-  });
+  const panner = createDirectionalPanner(sound.context);
   moduleNodes.add(panner);
   return panner;
 }
 
 function updateStatePosition(state, listener) {
   const document = state.ambient.document;
-  const position = toListenerSpace(
-    {x: document.x, y: document.y},
-    listener.position,
-    listener.rotation
-  );
-  const context = state.sound.context;
-  setAudioParam(state.panner.positionX, position.x, context);
-  setAudioParam(state.panner.positionY, position.y, context);
-  setAudioParam(state.panner.positionZ, position.z, context);
+  positionPanner(state.panner, { x: document.x, y: document.y }, listener);
 }
 
-function removeState(sound, {forgetOwner = false} = {}) {
+function removeState(sound, { forgetOwner = false } = {}) {
   const state = states.get(sound);
+
   if (state) {
     states.delete(sound);
     sound.removeEventListener("stop", state.onStop);
-    const effects = sound.effects.filter((node) => node !== state.panner);
-
-    // Rebuild a live pipeline immediately. A stopped Sound has already
-    // disconnected its graph, so only update its public effects array.
-    if (effects.length !== sound.effects.length) {
-      if (sound.playing) {
-        sound.applyEffects(effects);
-      } else {
-        sound.effects = effects;
-      }
-    }
-    state.panner.disconnect();
+    detachPanner(sound, state.panner);
   }
+
   if (forgetOwner) {
     owners.delete(sound);
   }
@@ -94,9 +67,10 @@ export function spatializeAmbientSound(ambient) {
   if (!sound) {
     return;
   }
-  owners.set(sound, ambient);
 
+  owners.set(sound, ambient);
   const listener = getControlledTokenListener();
+
   if (!worldEnabled() || !documentEnabled(ambient.document) || !listener) {
     removeState(sound);
     return;
@@ -105,8 +79,8 @@ export function spatializeAmbientSound(ambient) {
   let state = states.get(sound);
   if (!state) {
     const panner = createPanner(sound);
-    const onStop = () => removeState(sound, {forgetOwner: true});
-    state = {sound, ambient, panner, onStop};
+    const onStop = () => removeState(sound, { forgetOwner: true });
+    state = { sound, ambient, panner, onStop };
     states.set(sound, state);
     sound.addEventListener("stop", onStop);
   } else {
@@ -126,7 +100,9 @@ export function spatializeAmbientSound(ambient) {
 /**
  * Update only currently-spatialized sounds after token or emitter movement.
  */
-export function updateSpatialPositions(listener = getControlledTokenListener()) {
+export function updateSpatialPositions(
+  listener = getControlledTokenListener(),
+) {
   if (!worldEnabled() || !listener) {
     removeAllSpatializers();
     return;
@@ -166,12 +142,15 @@ export function reconcileActiveAmbientSounds() {
 /**
  * Remove the module node belonging to one AmbientSound, if it owns the Sound.
  */
-export function removeAmbientSpatializer(ambient, {forgetOwner = false} = {}) {
+export function removeAmbientSpatializer(
+  ambient,
+  { forgetOwner = false } = {},
+) {
   const sound = ambient?.sound;
   if (!sound || owners.get(sound) !== ambient) {
     return;
   }
-  removeState(sound, {forgetOwner});
+  removeState(sound, { forgetOwner });
   if (forgetOwner) {
     owners.delete(sound);
   }

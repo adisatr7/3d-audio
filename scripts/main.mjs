@@ -5,9 +5,16 @@ import {
   removeAllSpatializers,
   removeAmbientSpatializer,
   spatializeAmbientSound,
-  updateSpatialPositions
+  updateSpatialPositions,
 } from "./spatial-audio.mjs";
-import {getTokenDocumentListener} from "./coordinates.mjs";
+import { getTokenDocumentListener } from "./coordinates.mjs";
+import {
+  DOORS_SETTING,
+  installDoorAudio,
+  stopDoorSounds,
+  updateDoorSpatialPositions,
+} from "./door-audio.mjs";
+import { addDoorSoundConfig } from "./door-config.mjs";
 
 const WRAPPED = Symbol.for("3d-audio.AmbientSound.applyEffects");
 
@@ -23,14 +30,15 @@ function installAmbientSoundEffectsWrapper() {
     const result = original.apply(this, args);
     try {
       spatializeAmbientSound(this);
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`${MODULE_ID} | Failed to spatialize Ambient Sound`, error);
     }
     return result;
   }
 
-  Object.defineProperty(applyEffectsWithSpatialization, WRAPPED, {value: true});
+  Object.defineProperty(applyEffectsWithSpatialization, WRAPPED, {
+    value: true,
+  });
   prototype.applyEffects = applyEffectsWithSpatialization;
 }
 
@@ -43,7 +51,7 @@ function addAmbientSoundConfigCheckbox(app, element) {
   group.className = "form-group";
 
   const label = document.createElement("label");
-  label.textContent = "Enable 3D Audio";
+  label.textContent = game.i18n.localize("3d-audio.settings.enabled.name");
 
   const fields = document.createElement("div");
   fields.className = "form-fields";
@@ -58,7 +66,9 @@ function addAmbientSoundConfigCheckbox(app, element) {
   group.append(label, fields);
 
   // Keep the addition inside Foundry's existing Activation section.
-  const wallsGroup = element.querySelector('[name="walls"]')?.closest(".form-group");
+  const wallsGroup = element
+    .querySelector('[name="walls"]')
+    ?.closest(".form-group");
   if (wallsGroup) {
     wallsGroup.insertAdjacentElement("afterend", group);
   } else {
@@ -68,38 +78,73 @@ function addAmbientSoundConfigCheckbox(app, element) {
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, ENABLED_SETTING, {
-    name: "Enable 3D Audio",
-    hint: "Apply listener-relative HRTF spatialization to enabled canvas Ambient Sounds.",
+    name: "3d-audio.settings.enabled.name",
+    hint: "3d-audio.settings.enabled.hint",
     scope: "world",
     config: true,
     type: Boolean,
     default: true,
-    onChange: () => reconcileActiveAmbientSounds()
+    onChange: () => {
+      reconcileActiveAmbientSounds();
+      updateDoorSpatialPositions();
+    },
+  });
+
+  game.settings.register(MODULE_ID, DOORS_SETTING, {
+    name: "3d-audio.settings.doorsEnabled.name",
+    hint: "3d-audio.settings.doorsEnabled.hint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => updateDoorSpatialPositions(),
   });
 
   installAmbientSoundEffectsWrapper();
+  installDoorAudio();
 });
 
 Hooks.on("renderAmbientSoundConfig", addAmbientSoundConfigCheckbox);
 
+Hooks.on("renderWallConfig", addDoorSoundConfig);
+
 Hooks.on("canvasReady", () => queueMicrotask(reconcileActiveAmbientSounds));
 
-Hooks.on("canvasTearDown", () => removeAllSpatializers());
+Hooks.on("canvasTearDown", () => {
+  removeAllSpatializers();
+  stopDoorSounds();
+});
 
-Hooks.on("controlToken", () => queueMicrotask(reconcileActiveAmbientSounds));
+Hooks.on("controlToken", () =>
+  queueMicrotask(() => {
+    reconcileActiveAmbientSounds();
+    updateDoorSpatialPositions();
+  }),
+);
 
 Hooks.on("updateToken", (document, changes) => {
-  if (!document.object?.controlled) {
+  if (canvas.tokens?.controlled?.[0]?.document !== document) {
     return;
   }
 
-  if (!("x" in changes) && !("y" in changes) && !("rotation" in changes)
-    && !("width" in changes) && !("height" in changes)) {
+  if (
+    !("x" in changes) &&
+    !("y" in changes) &&
+    !("rotation" in changes) &&
+    !("width" in changes) &&
+    !("height" in changes)
+  ) {
     return;
   }
 
-  updateSpatialPositions(getTokenDocumentListener(document, changes));
+  const listener = getTokenDocumentListener(document, changes);
+  updateSpatialPositions(listener);
+  updateDoorSpatialPositions(listener);
 });
+
+Hooks.on("updateWall", () => updateDoorSpatialPositions());
+
+Hooks.on("deleteWall", (document) => stopDoorSounds(document));
 
 Hooks.on("updateAmbientSound", (document, changes) => {
   const ambient = document.object;
@@ -115,11 +160,11 @@ Hooks.on("updateAmbientSound", (document, changes) => {
     }
   }
 
-  if (("x" in changes) || ("y" in changes)) {
+  if ("x" in changes || "y" in changes) {
     updateSpatialPositions();
   }
 });
 
 Hooks.on("deleteAmbientSound", (document) => {
-  removeAmbientSpatializer(document.object, {forgetOwner: true});
+  removeAmbientSpatializer(document.object, { forgetOwner: true });
 });

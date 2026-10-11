@@ -8,6 +8,13 @@ import {
   updateSpatialPositions,
 } from "./spatial-audio.mjs";
 import { getTokenDocumentListener } from "./coordinates.mjs";
+import {
+  DOORS_SETTING,
+  installDoorAudio,
+  stopDoorSounds,
+  updateDoorSpatialPositions,
+} from "./door-audio.mjs";
+import { addDoorSoundConfig } from "./door-config.mjs";
 
 const WRAPPED = Symbol.for("3d-audio.AmbientSound.applyEffects");
 
@@ -77,32 +84,67 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: true,
-    onChange: () => reconcileActiveAmbientSounds()
+    onChange: () => {
+      reconcileActiveAmbientSounds();
+      updateDoorSpatialPositions();
+    },
+  });
+
+  game.settings.register(MODULE_ID, DOORS_SETTING, {
+    name: "3d-audio.settings.doorsEnabled.name",
+    hint: "3d-audio.settings.doorsEnabled.hint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => updateDoorSpatialPositions(),
   });
 
   installAmbientSoundEffectsWrapper();
+  installDoorAudio();
 });
 
 Hooks.on("renderAmbientSoundConfig", addAmbientSoundConfigCheckbox);
 
+Hooks.on("renderWallConfig", addDoorSoundConfig);
+
 Hooks.on("canvasReady", () => queueMicrotask(reconcileActiveAmbientSounds));
 
-Hooks.on("canvasTearDown", () => removeAllSpatializers());
+Hooks.on("canvasTearDown", () => {
+  removeAllSpatializers();
+  stopDoorSounds();
+});
 
-Hooks.on("controlToken", () => queueMicrotask(reconcileActiveAmbientSounds));
+Hooks.on("controlToken", () =>
+  queueMicrotask(() => {
+    reconcileActiveAmbientSounds();
+    updateDoorSpatialPositions();
+  }),
+);
 
 Hooks.on("updateToken", (document, changes) => {
-  if (!document.object?.controlled) {
+  if (canvas.tokens?.controlled?.[0]?.document !== document) {
     return;
   }
 
-  if (!("x" in changes) && !("y" in changes) && !("rotation" in changes)
-    && !("width" in changes) && !("height" in changes)) {
+  if (
+    !("x" in changes) &&
+    !("y" in changes) &&
+    !("rotation" in changes) &&
+    !("width" in changes) &&
+    !("height" in changes)
+  ) {
     return;
   }
 
-  updateSpatialPositions(getTokenDocumentListener(document, changes));
+  const listener = getTokenDocumentListener(document, changes);
+  updateSpatialPositions(listener);
+  updateDoorSpatialPositions(listener);
 });
+
+Hooks.on("updateWall", () => updateDoorSpatialPositions());
+
+Hooks.on("deleteWall", (document) => stopDoorSounds(document));
 
 Hooks.on("updateAmbientSound", (document, changes) => {
   const ambient = document.object;

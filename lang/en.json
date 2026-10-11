@@ -4,6 +4,34 @@
       "enabled": {
         "name": "Enable 3D Audio",
         "hint": "Apply listener-relative HRTF spatialization to enabled canvas Ambient Sounds and door sounds. Disabling this restores native playback."
+      },
+      "doorsEnabled": {
+        "name": "Enable 3D Door Sounds",
+        "hint": "Use the door audio controls in wall configuration. Disable to restore Foundry's native door sounds for every door, without affecting Ambient Sounds."
+      }
+    },
+    "door": {
+      "title": "3D Door Sounds",
+      "hint": "Uses the Door Sound preset selected above, including registered custom presets. Both 3D Audio world settings must be enabled; without a controlled token, playback is native.",
+      "enabled": {
+        "label": "Enable 3D Audio",
+        "hint": "Disable to use Foundry's native door audio for this door."
+      },
+      "radius": {
+        "label": "Hearing radius",
+        "hint": "Maximum hearing distance in scene units, including for controlled GM tokens. Defaults to Foundry's native door radius of twelve grid distances."
+      },
+      "volume": {
+        "label": "Volume",
+        "hint": "Sound volume from 0 (silent) to 1 (full volume), before native distance attenuation."
+      },
+      "easing": {
+        "label": "Distance easing",
+        "hint": "Fade with distance, like Ambient Sounds. When disabled, volume stays constant inside the hearing radius."
+      },
+      "walls": {
+        "label": "Blocked by walls",
+        "hint": "Sound-blocking walls prevent hearing. When disabled, Foundry applies its native muffling instead of blocking the sound."
       }
     }
   }
